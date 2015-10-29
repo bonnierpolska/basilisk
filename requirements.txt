@@ -1,0 +1,6 @@
+coverage
+elasticsearch
+pylint
+redis
+six
+sphinx
