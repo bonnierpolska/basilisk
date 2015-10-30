@@ -70,7 +70,7 @@ class NamedSingletonBase(object):
             raise TypeError("You need to pass group name as first argument to initialize this class.")
         group_name = args[0]
         if not isinstance(cls._instances[group_name], cls):
-            cls._instances[group_name] = super(NamedSingletonBase, cls).__new__(cls, *args, **kwargs)
+            cls._instances[group_name] = super(NamedSingletonBase, cls).__new__(cls)
             cls._instances[group_name].sl_init = True
             cls._instances[group_name].sl_name = group_name
         else:
@@ -116,7 +116,7 @@ class SingletonBase(object):
         new_args = list(args)
         new_args.insert(0, 'dummy')
         if not isinstance(cls._instance, cls):
-            cls._instance = super(SingletonBase, cls).__new__(cls, *args, **kwargs)
+            cls._instance = super(SingletonBase, cls).__new__(cls)
             cls._instance.sl_init = True
         else:
             cls._instance.sl_init = False
@@ -244,12 +244,12 @@ class MapModelCreator(type):
         for base in bases:
             # if we've encountered a model
             if '_fields' in base.__dict__ and base.get_fields():
-                for key, item in base.get_fields().iteritems():
+                for key, item in base.get_fields().items():
                     if isinstance(item, MapField):
                         args[key] = item
                         if item.is_primary():
                             id_fields.append(key)
-        for key, item in attrs.iteritems():
+        for key, item in attrs.items():
             if isinstance(item, MapField):
                 args[key] = item
                 if item.is_primary():
@@ -259,7 +259,7 @@ class MapModelCreator(type):
         # while the class and its instances should only keep a field's value
         # in field-named property. Additionally we're setting each field's
         # name as declared during class declaration.
-        for key, item in args.iteritems():
+        for key, item in args.items():
             item.set_name(key)
             if key in attrs:
                 del attrs[key]
@@ -344,7 +344,7 @@ class MapModelBase(object):
         :param kwargs:
         :return:
         """
-        for key, item in self._fields.iteritems():
+        for key, item in self._fields.items():
             self.__dict__[key] = kwargs[key] if key in kwargs else item.get_default()
 
     def get_instance_key(self):
@@ -362,7 +362,7 @@ class MapModelBase(object):
         :return: dictionary of values ready to be sent to NoSQL store.
         """
         ret = {k: (i.serialize(self.__dict__[k]) if hasattr(i, "serialize") else self.__dict__[k])
-               for k, i in self._fields.iteritems()}
+               for k, i in self._fields.items()}
         if dump:
             return json.dumps(ret)
         return ret
@@ -422,8 +422,13 @@ class MapModelBase(object):
         """
         if loads:
             data = json.loads(data)
+
+        data = {
+            key if isinstance(key, str) else key.decode('utf-8'): value
+            for key, value in data.items()
+        }
         return {key: cls.get_fields()[key].pythonize(value)
-                for key, value in data.iteritems()
+                for key, value in data.items()
                 if key in cls.get_fields()}
 
     @classmethod

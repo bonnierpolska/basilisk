@@ -4,6 +4,7 @@ This module contains tests regarding correctness of nosql_map's Public API.
 import unittest
 
 import redis
+from six import string_types, b
 
 from .base import RedisModelRegister, singleton_decorator, NamedSingleton, MapModel, Config, MapModelBase
 from .fields import MapField, JsonMapField
@@ -232,7 +233,7 @@ class RedisFieldTest(unittest.TestCase):
         self.assertIsNone(field_b.get_default())
         self.assertEqual(field_a.is_primary(), True)
         self.assertEqual(field_b.is_primary(), False)
-        self.assertIsInstance(field_a.pythonize('field_a'), basestring)
+        self.assertIsInstance(field_a.pythonize('field_a'), string_types)
         self.assertIsInstance(field_b.pythonize('1'), int)
         self.assertEqual(field_a.serialize('field_a'), 'field_a')
         field_a.set_name('c')
@@ -240,6 +241,7 @@ class RedisFieldTest(unittest.TestCase):
         json_field = JsonMapField(name='field_c')
         self.assertEqual(json_field.pythonize(json_field.serialize({'a': [1, 2]}))['a'][1], 2)
         self.assertEqual(json_field.pythonize(u'{"a": 2}'), {'a': 2})
+        self.assertEqual(json_field.pythonize(b('{"a": 2}')), {'a': 2})
 
 
 class RedisModelTest(unittest.TestCase):
@@ -320,10 +322,10 @@ class RedisModelTest(unittest.TestCase):
         dictionary = dict(name='test', fame=2, value='over 9000')
         inheriting = self.Inheriting(**dictionary)
         loaded = inheriting.pythonize(inheriting.serialize(dump=True), loads=True)
-        for key, value in dictionary.iteritems():
+        for key, value in dictionary.items():
             self.assertEqual(value, loaded[key])
         loaded = inheriting.to_dict()
-        for key, value in dictionary.iteritems():
+        for key, value in dictionary.items():
             self.assertEqual(value, loaded[key])
 
     def test_create_id(self):
@@ -361,15 +363,15 @@ class RedisSortedSetTest(unittest.TestCase):
         redis_ss.set_score('a', 0)
         redis_ss.delete_item('e')
         redis_ss.save()
-        self.assertEqual(redis_ss.lowest(), ('a', 0.0))
-        self.assertEqual(redis_ss.highest(), ('d', 4.0))
-        self.assertEqual(redis_ss[0][0], 'a')
-        self.assertEqual(redis_ss[0:][:], ['a', 'b', 'c', 'd'])
-        self.assertEqual(redis_ss[0:][0:2], ['a', 'b'])
+        self.assertEqual(redis_ss.lowest(), (b('a'), 0.0))
+        self.assertEqual(redis_ss.highest(), (b('d'), 4.0))
+        self.assertEqual(redis_ss[0][0], b('a'))
+        self.assertEqual(redis_ss[0:][:], [b(x) for x in ['a', 'b', 'c', 'd']])
+        self.assertEqual(redis_ss[0:][0:2], [b(x) for x in ['a', 'b']])
         self.assertEqual(len(redis_ss), 4)
         del redis_ss[0]
         self.assertEqual(len(redis_ss), 3)
-        self.assertEqual(redis_ss[0:][:], ['b', 'c', 'd'])
+        self.assertEqual(redis_ss[0:][:], [b(x) for x in ['b', 'c', 'd']])
         del redis_ss[:]
         self.assertEqual(len(redis_ss), 0)
 
@@ -393,7 +395,7 @@ class RedisHashTest(unittest.TestCase):
         redis_hash['e'] = 5
         redis_hash['e'] = 6
         redis_hash.save()
-        self.assertEqual(redis_hash.get('a', 'b', 'c'), ['1', '2', '3'])
+        self.assertEqual(redis_hash.get('a', 'b', 'c'), [b(x) for x in ['1', '2', '3']])
         self.assertEqual(int(redis_hash['e']), 6)
         self.assertEqual(int(redis_hash['a']), 1)
         del redis_hash['a']
@@ -402,8 +404,8 @@ class RedisHashTest(unittest.TestCase):
         self.assertIsNone(redis_hash['a'])
         self.assertEqual(int(redis_hash['b']), 3)
         self.assertEqual(len(redis_hash), 4)
-        self.assertEqual(set(redis_hash.keys()), {'b', 'c', 'd', 'e'})
-        self.assertEqual(redis_hash.items(), {'b': '3', 'c': '3', 'd': '4', 'e': '6'})
+        self.assertEqual(set(redis_hash.keys()), {b(x) for x in {'b', 'c', 'd', 'e'}})
+        self.assertEqual(redis_hash.items(), {b(k): b(v) for k, v in {'b': '3', 'c': '3', 'd': '4', 'e': '6'}.items()})
         self.assertIn('b', redis_hash)
 
 
@@ -496,10 +498,10 @@ class ElasticsearchModelTest(unittest.TestCase):
         dictionary = dict(name='test', fame=2, value='over 9000')
         inheriting = self.Inheriting(**dictionary)
         loaded = inheriting.pythonize(inheriting.serialize(dump=True), loads=True)
-        for key, value in dictionary.iteritems():
+        for key, value in dictionary.items():
             self.assertEqual(value, loaded[key])
         loaded = inheriting.to_dict()
-        for key, value in dictionary.iteritems():
+        for key, value in dictionary.items():
             self.assertEqual(value, loaded[key])
 
     def test_create_id(self):

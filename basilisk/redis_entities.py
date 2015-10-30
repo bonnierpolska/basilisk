@@ -215,7 +215,7 @@ class RedisSortedSet(object):
         """
         to_remove = []
         to_add = {}
-        for key, value in self.changes.iteritems():
+        for key, value in self.changes.items():
             if value[-1] is None:
                 to_remove.append(key)
             else:
@@ -341,7 +341,7 @@ class RedisHash(object):
         """
         to_remove = []
         to_add = {}
-        for key, value in self.changes.iteritems():
+        for key, value in self.changes.items():
             if value[-1] is None:
                 to_remove.append(key)
             else:

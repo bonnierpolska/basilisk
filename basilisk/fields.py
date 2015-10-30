@@ -3,6 +3,8 @@ This module contains serializable fields ready to use in NoSQL store models.
 """
 import json
 
+from six import text_type
+
 
 class MapField(object):
     """
@@ -19,7 +21,7 @@ class MapField(object):
         primary key and name (but that's better used by NoSQLModelCreator).
         :return:
         """
-        self._type = kwargs.get('type', None)
+        self._type = kwargs.get('type', lambda data: data if isinstance(data, str) else data.decode('utf-8'))
         self._default = kwargs.get('default', None)
         self._name = kwargs.get('name', None)
         self._key = kwargs.get('key', False)
@@ -103,6 +105,6 @@ class JsonMapField(MapField):
         :param data: data fetched from NoSQL store.
         :return: data in Python format.
         """
-        if isinstance(data, unicode):
+        if isinstance(data, text_type):
             return json.loads(data)
-        return json.loads(unicode(data, 'utf-8'), 'utf-8')
+        return json.loads(text_type(data, 'utf-8'), 'utf-8')
