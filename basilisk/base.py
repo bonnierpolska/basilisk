@@ -19,8 +19,9 @@ def singleton_decorator(function):
     We embed given function into checking if the first (zeroth) parameter of its call
     shall be initialised. Additionally the parameter corresponding to NamedSingleton's
     group name is removed from the actual call.
+
     :param function: instantiating function (usually __init__).
-    :return: embedded function function.
+    :returns: embedded function function.
     """
     @wraps(function)
     def wrapper(*args, **kwargs):
@@ -57,14 +58,10 @@ class NamedSingletonBase(object):
     """
     _instances = defaultdict(lambda: None)
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args):
         """
         This magic method override makes sure that only one instance with given
         group name (args[0]) will be created.
-        :param cls:
-        :param args:
-        :param kwargs:
-        :return:
         """
         if len(args) < 1:
             raise TypeError("You need to pass group name as first argument to initialize this class.")
@@ -84,11 +81,14 @@ class NamedSingleton(with_metaclass(SingletonCreator, NamedSingletonBase)):
     overriding default __new__ magic method's behaviour. Only thing necessary
     to use it is having NamedSingleton as a base class (and SingletonMetaclass
     as a base for your metaclass, if you need one).
+
     Named singleton differs from regular singleton in that it enables you global
     access to a bunch of named instances. You can't create more than one instance
     with the same group name.
+
     You should pass the group name as the first parameter while getting
     a NamedSingleton instance.
+
     sl_init and sl_name properties are reserved, you can't use them in inheriting classes.
     """
     pass
@@ -100,18 +100,16 @@ class SingletonBase(object):
     overriding default __new__ magic method's behaviour. Only thing necessary
     to use it is having Singleton as a base class (and SingletonMetaclass
     as a base for your metaclass, if you need one).
+
     sl_init property is reserved, you can't use it in inheriting classes.
     """
 
     _instance = None
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args):
         """
         This magic method override makes sure that only one instance will be created.
-        :param cls:
-        :param args:
-        :param kwargs:
-        :return:
+
         """
         new_args = list(args)
         new_args.insert(0, 'dummy')
@@ -125,14 +123,15 @@ class SingletonBase(object):
 
 class ConfigCreator(SingletonCreator):
     """
-    This metaclass is just a hack to enable dict-like access and assure only one instance
+    This metaclass is just a hack to enable dict-like access and assure only one instance.
     """
 
     def __getitem__(cls, item):
         """
         Let's enable dict-like read-only access.
-        :param item:
-        :return:
+
+        :param item: item to get.
+        :returns: item's value.
         """
         return getattr(cls, item)
 
@@ -140,6 +139,7 @@ class ConfigCreator(SingletonCreator):
 class Config(with_metaclass(ConfigCreator, SingletonBase)):
     """
     This class keeps appropriate config data.
+
     It enables access as a class property and as an item (like in dict).
     """
 
@@ -154,8 +154,9 @@ class Config(with_metaclass(ConfigCreator, SingletonBase)):
     def __getitem__(self, item):
         """
         Let's enable dict-like read-only access.
-        :param item:
-        :return:
+
+        :param item: item to get.
+        :returns: item's value.
         """
         return getattr(self.__class__, item)
 
@@ -164,10 +165,10 @@ class MapModelRegister(object):
     """
     This class as model register for a NoSQL store.
     """
+
     def __init__(self):
         """
         We create an empty model dict.
-        :return: self
         """
         self._models = {}
         self.connect = lambda: None
@@ -175,9 +176,11 @@ class MapModelRegister(object):
     def register(self, name, ref):
         """
         Register a model, shall we?
+
         :param name: model name.
         :param ref: model class.
-        :return: True if model was added just now, False if it was already in the register.
+        :returns: True if model was added just now, False if it was already in the register.
+
         """
         if not self.lookup(name):
             self._models[name] = ref
@@ -187,8 +190,9 @@ class MapModelRegister(object):
     def lookup(self, name):
         """
         I like to know if a model is in the register, don't you?
+
         :param name: name to check.
-        :return: True if model with given name is in the register, False otherwise.
+        :returns: True if model with given name is in the register, False otherwise.
         """
         return self._models.get(name, None)
 
@@ -197,10 +201,10 @@ class RedisModelRegister(NamedSingleton, MapModelRegister):
     """
     This class creates Redis connection pool and acts as model register.
     """
+
     def __init__(self):
         """
         We create a connection pool.
-        :return: self
         """
         super(RedisModelRegister, self).__init__()
         self.pool = redis.ConnectionPool(**Config[self.sl_name])
@@ -214,7 +218,6 @@ class ElasticsearchModelRegister(NamedSingleton, MapModelRegister):
     def __init__(self):
         """
         We create a connection pool.
-        :return: self
         """
         super(ElasticsearchModelRegister, self).__init__()
         self.connect = lambda: Elasticsearch(**Config[self.sl_name])
@@ -235,9 +238,10 @@ class MapModelCreator(type):
         This function creates a list of all properties descending from MapField
         which were created directly in attrs or in base classes. Those properties
         are all removed from attrs.
+
         :param bases: base classes
         :param attrs: devlared properties of the class.
-        :return: 2-tuple containing a list of MapFields in class and its ancestors and a list of names of id fields.
+        :returns: 2-tuple containing a list of MapFields in class and its ancestors and a list of names of id fields.
         """
         args = {}
         id_fields = []
@@ -270,11 +274,6 @@ class MapModelCreator(type):
         This method creates and registers new class, if it's not already
         in the register, and injects it with a list of fields _fields,
         a NoSQL store connection function connect and primary key field's name.
-        :param mcs:
-        :param name:
-        :param bases:
-        :param attrs:
-        :return:
         """
         # Do not modify the base classes, which actual models inherit.
         if bases[0].__bases__[0].__name__ != 'object':
@@ -321,12 +320,15 @@ class MapModelException(Exception):
 class MapModelBase(object):
     """
     This is the base class for NoSQL store models.
+
     This class enables reading object with given id, saving object and data
     (de)serialization.
+
     Redis connection is available in connect property.
     Dict of fields is available in _fields property.
 
     Reserved property names, apart from methods, are _fields, id_field and connect.
+
     :type _fields: dict
     :type id_field: str
     """
@@ -341,8 +343,8 @@ class MapModelBase(object):
         """
         We fill the instance using kwargs elements that are also fields or fields'
         default values.
-        :param kwargs:
-        :return:
+
+        :param kwargs: initial values of fields.
         """
         for key, item in self._fields.items():
             self.__dict__[key] = kwargs[key] if key in kwargs else item.get_default()
@@ -350,7 +352,8 @@ class MapModelBase(object):
     def get_instance_key(self):
         """
         This function returns a key in which the instance will live in NoSQL store.
-        :return: Redis key name containing instance hash
+
+        :returns: Redis key name containing instance hash
         """
         return self.get_key(getattr(self, self.id_field))
 
@@ -358,8 +361,9 @@ class MapModelBase(object):
         """
         We try to call serialize for each field, if it doesn't exist then field's value
         is not converted.
+
         :param dump: whether the result should be json (True) or python dict (False).
-        :return: dictionary of values ready to be sent to NoSQL store.
+        :returns: dictionary of values ready to be sent to NoSQL store.
         """
         ret = {k: (i.serialize(self.__dict__[k]) if hasattr(i, "serialize") else self.__dict__[k])
                for k, i in self._fields.items()}
@@ -370,7 +374,8 @@ class MapModelBase(object):
     def to_dict(self, *args):
         """
         This method returns a dict containing fields and their values in this instance.
-        :return: values dict.
+
+        :returns: values dict.
         """
         ret = {k: self.__dict__[k] for k in self._fields if not args or k in args}
         return ret
@@ -378,8 +383,8 @@ class MapModelBase(object):
     def _save(self, create_id):
         """
         This method performs store-agnostic part of saving.
+
         :param create_id: whether id should be created automatically if it's not set yet.
-        :return:
         """
         if not getattr(self, self.id_field):
             if create_id:
@@ -391,8 +396,9 @@ class MapModelBase(object):
     def save(self, create_id=True):
         """
         Let's save instance's current state to NoSQL store.
+
         :param create_id: whether id should be created automatically if it's not set yet.
-        :return: self
+        :returns: self
         """
         raise NotImplementedError()
 
@@ -400,7 +406,8 @@ class MapModelBase(object):
     def get_fields(cls):
         """
         This function returns the dict of model fields.
-        :return: dict containing name: field pairs.
+
+        :returns: dict containing name: field pairs.
         """
         return cls._fields
 
@@ -408,17 +415,19 @@ class MapModelBase(object):
     def get_key(cls, oid):
         """
         This function creates a key in which NoSQL store will save the instance with given id.
+
         :param oid: id of object for which a key should be created.
-        :return: NoSQL store key.
+        :returns: NoSQL store key.
         """
         raise NotImplementedError()
 
     @classmethod
     def pythonize(cls, data, loads=False):
         """
-        This method creates new instance using data fetched from NoSQL store.
-        :param data:
-        :return:
+        This method prepares the data fetched from NoSQL store for new instance.
+
+        :param data: values to convert.
+        :returns: dict of values ready to pass to __init__.
         """
         if loads:
             data = json.loads(data)
@@ -435,8 +444,9 @@ class MapModelBase(object):
     def get(cls, oid):
         """
         This method gets a model instance with given id from NoSQL store.
+
         :param oid: id of object to get.
-        :return: hydrated model instance.
+        :returns: hydrated model instance.
         """
         raise NotImplementedError()
 

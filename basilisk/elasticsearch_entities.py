@@ -23,10 +23,12 @@ class ElasticsearchModel(with_metaclass(ElasticsearchModelCreator, MapModelBase)
     This is the base class for Elasticsearch models. Internally they are just a Elasticsearch entity.
     This class enables reading object with given id, saving object and data
     (de)serialization.
+
     Elasticsearch connection is available in connect property.
     Dict of fields is available in _fields property.
 
     Reserved property names, apart from methods, are _fields, id_field and connect.
+
     :type connect: elasticsearch.Elasticsearch
     """
 
@@ -39,8 +41,8 @@ class ElasticsearchModel(with_metaclass(ElasticsearchModelCreator, MapModelBase)
     def save(self, create_id=True):
         """
         Let's save instance's current state to Elasticsearch.
+
         :param create_id: whether id should be created automatically if it's not set yet.
-        :return: self
         """
         self._save(create_id)
         params = self.get_instance_key()
@@ -52,8 +54,9 @@ class ElasticsearchModel(with_metaclass(ElasticsearchModelCreator, MapModelBase)
     def get_key(cls, oid=None):
         """
         This function creates a key in which Elasticsearch will save the instance with given id.
+
         :param oid: id of object for which a key should be created.
-        :return: Elasticsearch key (index, document and id).
+        :returns: Elasticsearch key (index, document and id).
         """
         key = {'index': cls.__module__.replace('__', ''), 'doc_type': cls.__name__}
         if oid:
@@ -64,8 +67,9 @@ class ElasticsearchModel(with_metaclass(ElasticsearchModelCreator, MapModelBase)
     def get(cls, oid):
         """
         This method gets a model instance with given id from Elasticsearch.
+
         :param oid: id of object to get.
-        :return: hydrated model instance.
+        :returns: hydrated model instance.
         """
         try:
             data = cls.connect.get(**cls.get_key(oid))['_source']

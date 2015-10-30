@@ -26,6 +26,7 @@ class RedisModel(with_metaclass(RedisModelCreator, MapModelBase)):
     Dict of fields is available in _fields property.
 
     Reserved property names, apart from methods, are _fields, id_field and connect.
+
     :type connect: redis.Redis
     """
     __metaclass__ = RedisModelCreator
@@ -38,8 +39,9 @@ class RedisModel(with_metaclass(RedisModelCreator, MapModelBase)):
     def save(self, create_id=True):
         """
         Let's save instance's current state to Redis.
+
         :param create_id: whether id should be created automatically if it's not set yet.
-        :return: self
+        :returns: self
         """
         self._save(create_id)
         self.connect.hmset(self.get_instance_key(), self.serialize())
@@ -49,8 +51,9 @@ class RedisModel(with_metaclass(RedisModelCreator, MapModelBase)):
     def get_key(cls, oid):
         """
         This function creates a key in which Redis will save the instance with given id.
+
         :param oid: id of object for which a key should be created.
-        :return: Redis key.
+        :returns: Redis key.
         """
         return "{0.__module__}.{0.__name__}.{1}".format(cls, oid)
 
@@ -58,8 +61,9 @@ class RedisModel(with_metaclass(RedisModelCreator, MapModelBase)):
     def get(cls, oid):
         """
         This method gets a model instance with given id from Redis.
+
         :param oid: id of object to get.
-        :return: hydrated model instance.
+        :returns: hydrated model instance.
         """
         data = cls.connect.hgetall(cls.get_key(oid))
         if data:
@@ -70,18 +74,20 @@ class RedisModel(with_metaclass(RedisModelCreator, MapModelBase)):
 class RedisSortedSetSlice(object):
     """
     An inner class proxying ranges returned by ZRANGEBYSCORE to enable indexing by count.
+
     It does not enable changing elements' values.
+
     :type connect: redis.Redis
     """
 
     def __init__(self, connect, key, start, end):
         """
         This method sets up the properties required by object to work.
+
         :param connect: Redis connection.
         :param key: key where sorted set is kept.
         :param start: starting SCORE
         :param end: ending SCORE
-        :return:
         """
         self.connect = connect
         self.key = key
@@ -91,8 +97,9 @@ class RedisSortedSetSlice(object):
     def __getitem__(self, item):
         """
         This function translates Python index and slice into ZRANGEBYSCORE and returns Redis's response.
+
         :param item: index or slice to get.
-        :return: element or a list of elements.
+        :returns: element or a list of elements.
         """
         if isinstance(item, slice):
             if item.start is None:
@@ -108,7 +115,8 @@ class RedisSortedSetSlice(object):
     def __len__(self):
         """
         Returns Redis-counted number of elements in range.
-        :return: number of elements in range.
+
+        :returns: number of elements in range.
         """
         return self.connect.zcount(self.key, self.start, self.end)
 
@@ -118,12 +126,14 @@ class RedisSortedSet(object):
     This class is used to proxy Redis's Sorted Sets. It allows value search with
     pagination and delayed (lazy) key alterations. Indexing works with SCORE,
     not MEMBER or RANK.
+
     set_score and delete_item methods don't interface with Redis directly, but are
     queued in a change list.
+
     :type connect: redis.Redis
     :type changes: dict
     """
-    namespace='redis'
+    namespace = 'redis'
 
     def __init__(self, name, namespace=None):
         """
@@ -132,7 +142,6 @@ class RedisSortedSet(object):
 
         :param namespace: name of connection used for this instance.
         :param name: name of sorted set.
-        :return:
         """
         self.connect = RedisModelRegister(namespace or self.namespace).connect()
         self.name = name
@@ -141,15 +150,15 @@ class RedisSortedSet(object):
     def clear(self):
         """
         I'm tired of you, off you go. Disappear from Redis. NOW.
-        :return:
         """
         self.connect.delete(self.get_instance_key())
 
     def __getitem__(self, item):
         """
         Returns RedisSortedSetSlice for given SCORE or its range passed as a slice.
+
         :param item: SCORE or slice [SCORE MIN, SCORE MAX].
-        :return: RedisSortedSetSlice for given SCORE or its range.
+        :returns: RedisSortedSetSlice for given SCORE or its range.
         """
         if isinstance(item, slice):
             return RedisSortedSetSlice(self.connect, self.get_instance_key(), item.start, item.stop)
@@ -158,6 +167,7 @@ class RedisSortedSet(object):
     def __delitem__(self, item):
         """
         Removes elements with given SCORE or in given SCORE range.
+
         :param item: SCORE or slice [SCORE MIN, SCORE MAX]
         """
         if isinstance(item, slice):
@@ -170,7 +180,8 @@ class RedisSortedSet(object):
     def __len__(self):
         """
         Let's see how many items do we have in our set. As returned by Redis.
-        :return: number of elements in set.
+
+        :returns: number of elements in set.
         """
         return self.connect.zcard(self.get_instance_key())
 
@@ -178,9 +189,9 @@ class RedisSortedSet(object):
         """
         This function adds a new element if it's not in Redis and sets its SCORE.
         You need to call save() to propagate changes to Redis.
+
         :param item: element to be added or modified.
         :param score: element's SCORE.
-        :return:
         """
         self.changes[item].append(float(score))
 
@@ -188,22 +199,24 @@ class RedisSortedSet(object):
         """
         This method deletes given element.
         You need to call save() to propagate changes to Redis.
+
         :param item: element to be removed.
-        :return:
         """
         self.changes[item].append(None)
 
     def lowest(self):
         """
         Returns element with lowest SCORE and its SCORE.
-        :return: element with lowest SCORE and its SCORE.
+
+        :returns: element with lowest SCORE and its SCORE.
         """
         return (self.connect.zrange(self.get_instance_key(), 0, 0, withscores=True) or [(None, 0)])[0]
 
     def highest(self):
         """
         Returns element with highest SCORE and its SCORE.
-        :return: element with highest SCORE and its SCORE.
+
+        :returns: element with highest SCORE and its SCORE.
         """
         return (self.connect.zrevrange(self.get_instance_key(), 0, 0, withscores=True)or [(None, 0)])[0]
 
@@ -211,7 +224,6 @@ class RedisSortedSet(object):
         """
         This method analyzes changelist and using as few operations as possible propagates
         changes to Redis's Sorted Set representing this instance.
-        :return:
         """
         to_remove = []
         to_add = {}
@@ -229,7 +241,8 @@ class RedisSortedSet(object):
     def get_instance_key(self):
         """
         This function creates Redis's instance key.
-        :return: key in which instance will be saved.
+
+        :returns: key in which instance will be saved.
         """
         return self.get_key(self.name)
 
@@ -237,8 +250,9 @@ class RedisSortedSet(object):
     def get_key(cls, name):
         """
         This method creates a Redis key in which instance with given name will be saved.
+
         :param name: name of object for which a key is to be made.
-        :return: key used in Redis for given name.
+        :returns: key used in Redis for given name.
         """
         return name
 
@@ -247,7 +261,8 @@ class RedisHash(object):
     """
     This class acts as a proxy for Redis Hash. It enables delayed modifications.
     __setitem__ and __delitem__ methods don't modify Redis immediately, but are instead
-    ququed in a changelist.
+    queued in a changelist.
+
     :type connect: redis.Redis
     :type changes: dict
     """
@@ -257,9 +272,9 @@ class RedisHash(object):
         """
         This function initializes changelist and remembers name of the hash.
         By default name is used as Redis key for this instance.
+
         :param namespace: name of connection used by this instance.
         :param name: name of the hash.
-        :return:
         """
         self.connect = RedisModelRegister(namespace or self.namespace).connect()
         self.name = name
@@ -268,29 +283,30 @@ class RedisHash(object):
     def clear(self):
         """
         This removes whole hash from Redis.
-        :return:
         """
         self.connect.delete(self.get_instance_key())
 
     def get(self, *fields):
         """
         This gets one or many items from Redis.
+
         :param fields: list of fields to get.
-        :return:
         """
         return self.connect.hmget(self.get_instance_key(), *fields)
 
     def __getitem__(self, item):
         """
         This function returns value assigned to given key.
+
         :param item: key belonging to this hash.
-        :return: given key's value.
+        :returns: given key's value.
         """
         return self.connect.hget(self.get_instance_key(), item)
 
     def __delitem__(self, item):
         """
         Removes given key from hash.
+
         :param item: key to be removed.
         """
         self.changes[item].append(None)
@@ -298,38 +314,43 @@ class RedisHash(object):
     def __len__(self):
         """
         How many elements are in hash - as Redis says.
-        :return: number of elements in hash.
+
+        :returns: number of elements in hash.
         """
         return self.connect.hlen(self.get_instance_key())
 
     def keys(self):
         """
         This returns list of keys in hash.
-        :return: list of keys in hash.
+
+        :returns: list of keys in hash.
         """
         return self.connect.hkeys(self.get_instance_key())
 
     def items(self):
         """
         This returns key, value pairs available in this hash.
-        :return: hash's key, value pairs.
+
+        :returns: hash's key, value pairs.
         """
         return self.connect.hgetall(self.get_instance_key())
 
     def __contains__(self, item):
         """
         This functions checks for given key's existence in hash.
+
         :param item: key to be checked.
-        :return: boolean
+        :returns: boolean
         """
         return self.connect.hexists(self.get_instance_key(), item)
 
     def __setitem__(self, item, value):
         """
         Assigns value to key in the hash.
+
         :param item: key
         :param value: value
-        :return:
+        :returns:
         """
         self.changes[item].append(value)
 
@@ -337,7 +358,6 @@ class RedisHash(object):
         """
         This method analyzes changelist and using as few operations as possible propagates
         changes to Redis's Hash representing this instance.
-        :return:
         """
         to_remove = []
         to_add = {}
@@ -355,7 +375,8 @@ class RedisHash(object):
     def get_instance_key(self):
         """
         This function creates Redis's instance key.
-        :return: key in which instance will be saved.
+
+        :returns: key in which instance will be saved.
         """
         return self.get_key(self.name)
 
@@ -363,8 +384,9 @@ class RedisHash(object):
     def get_key(cls, name):
         """
         This method creates a Redis key in which instance with given name will be saved.
+
         :param name: name of object for which a key is to be made.
-        :return: key used in Redis for given name.
+        :returns: key used in Redis for given name.
         """
         return name
 
@@ -373,6 +395,7 @@ class RedisList(object):
     """
     This class is a proxy for Redis List. It enables instant modifications to
     Redis entity. It has only basic operations pythonized at the moment.
+
     :type connect: redis.Redis
     """
     namespace = 'redis'
@@ -384,7 +407,6 @@ class RedisList(object):
 
         :param namespace: name of connection used by this instance.
         :param name: name of hash.
-        :return:
         """
         self.connect = RedisModelRegister(namespace or self.namespace).connect()
         self.name = name
@@ -392,15 +414,15 @@ class RedisList(object):
     def clear(self):
         """
         This removes the list from Redis.
-        :return:
         """
         self.connect.delete(self.get_instance_key())
 
     def __getitem__(self, item):
         """
         Returns value(s) for given index or slice [min, max].
+
         :param item: index or slice.
-        :return: value or values.
+        :returns: value or values.
         """
         if isinstance(item, slice):
             if item.start is None:
@@ -416,6 +438,7 @@ class RedisList(object):
     def remove(self, item):
         """
         Removes all elements with given value.
+
         :param item: value to be removed.
         """
         self.connect.lrem(self.get_instance_key(), item, 0)
@@ -423,24 +446,24 @@ class RedisList(object):
     def append(self, item):
         """
         Adds element at the end of the list.
+
         :param item: element to be appended.
-        :return:
         """
         return self.connect.rpush(self.get_instance_key(), item)
 
     def prepend(self, item):
         """
         Adds element at the beginning of the list.
+
         :param item: element to be prepended.
-        :return:
         """
         return self.connect.lpush(self.get_instance_key(), item)
 
     def pop(self, first=False):
         """
         Gets and removes an element from list's edge. By default it's the last element.
+
         :param first: Should the first element be popped instead of the last.
-        :return:
         """
         if first:
             return self.connect.lpop(self.get_instance_key())
@@ -450,23 +473,25 @@ class RedisList(object):
     def __len__(self):
         """
         List length as returned by Redis.
-        :return: number of elements in the list.
+
+        :returns: number of elements in the list.
         """
         return self.connect.llen(self.get_instance_key())
 
     def __setitem__(self, item, value):
         """
         Assigns a value to given index.
+
         :param item: index
         :param value: value
-        :return:
         """
         self.connect.lset(self.get_instance_key(), item, value)
 
     def get_instance_key(self):
         """
         This function creates Redis's instance key.
-        :return: key in which instance will be saved.
+
+        :returns: key in which instance will be saved.
         """
         return self.get_key(self.name)
 
@@ -474,7 +499,8 @@ class RedisList(object):
     def get_key(cls, name):
         """
         This method creates a Redis key in which instance with given name will be saved.
+
         :param name: name of object for which a key is to be made.
-        :return: key used in Redis for given name.
+        :returns: key used in Redis for given name.
         """
         return name
