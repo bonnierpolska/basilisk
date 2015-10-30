@@ -5,6 +5,9 @@ python:
   - "3.4"
   - "3.5"
   - "pypy"
+services:
+  - redis
+  - elasticsearch
 script:
   # need to skip pylint on 3.5 since it doesn't work yet.
   - if [[ $TRAVIS_PYTHON_VERSION != '3.5' ]]; then pylint basilisk --rcfile=.pylintrc; fi
