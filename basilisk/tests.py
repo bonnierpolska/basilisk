@@ -37,6 +37,7 @@ class SingletonDecoratorTest(unittest.TestCase):
                 This method sets the parameter checked by singleton_decorator.
                 """
                 self.sl_init = sl_init
+                self.sl_name = 'A'
 
         cls.Test = Test
 

@@ -31,7 +31,8 @@ def singleton_decorator(function):
         """
         if args[0].sl_init:
             new_args = list(args)
-            del new_args[1]
+            if hasattr(args[0], 'sl_name'):
+                del new_args[1]
             return function(*new_args, **kwargs)
     return wrapper
 
@@ -111,8 +112,6 @@ class SingletonBase(object):
         This magic method override makes sure that only one instance will be created.
 
         """
-        new_args = list(args)
-        new_args.insert(0, 'dummy')
         if not isinstance(cls._instance, cls):
             cls._instance = super(SingletonBase, cls).__new__(cls)
             cls._instance.sl_init = True
