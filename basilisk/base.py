@@ -107,7 +107,7 @@ class SingletonBase(object):
 
     _instance = None
 
-    def __new__(cls, *args):
+    def __new__(cls, *_):
         """
         This magic method override makes sure that only one instance will be created.
 
